@@ -1,114 +1,125 @@
-/*
-Read from controllers with pad_poll().
-We also demonstrate sprite animation by cycling among
-several different metasprites, which are defined using macros.
-*/
-
-#include <stdlib.h>
+#include "neslib.h"
 #include <string.h>
 
-// include NESLIB header
-#include "neslib.h"
-
-// include CC65 NES Header (PPU)
-#include <nes.h>
-
+//#resource "sketch.chr"
+//#link "map.s"
 #include "nam.h"
-
-
-// link the pattern table into CHR ROM
-//#link "chr_generic.s"
 
 #include "setup.c"
 
-//static unsigned char map[MAP_WDT * MAP_HGT];
-const unsigned char palGame[16]={ 0x0f,0x11,0x32,0x30,0x0f,0x1c,0x2c,0x3c,0x0f,0x09,0x27,0x38,0x0f,0x11,0x21,0x31 };
-
-
-// setup PPU and tables
-
-void setup_graphics()
-{
-    // clear sprites
-    oam_hide_rest(0);
-    // set palette colors
-    pal_all(PALETTE);
-    // turn on PPU
-    ppu_on_all();
-}
-
-
-// number of actors (4 h/w sprites each)
-#define NUM_ACTORS 2
-
-// actor x/y positions
 byte actor_x[NUM_ACTORS];
 byte actor_y[NUM_ACTORS];
 // actor x/y deltas per frame (signed)
 sbyte actor_dx[NUM_ACTORS];
 sbyte actor_dy[NUM_ACTORS];
 
+byte actor_dir[NUM_ACTORS];
+
+
+//static unsigned char debug[32];
+static unsigned char map[MAP_WDT * MAP_HGT];
+static unsigned char nameRow[32];
+//static unsigned char tile[1];
+static unsigned char ptr, spr;
+static unsigned int i16;
+static unsigned char i, j;
+static unsigned char px, py;
+
+typedef enum { LEFT, RIGHT, UP, DOWN } PlayerDirections;
+
+
+char pad;
+int future_x;
+int future_y;
+
+
+bool tile_is_solid(char tile){
+  int i;
+  for (i=0; i<6; i++){
+    if(solids[i] == tile)
+    	return true;
+  }
+  return false;
+}
+
 // main program
 void main()
 {
-    char i; // actor index
-    char oam_id;	// sprite ID
-    char pad;	// controller flags
+  // draw preloaded nametable
+  vram_adr(NAMETABLE_A);
+  vram_write(nam, 1024);
+  pal_all(PALETTE);
+
+  // now read vram and get map representation
+  i16 = NAMETABLE_A+0x80;
+  ptr = 0;
   
-    // setup graphics
-    setup_graphics();
-
-    //oam_meta_spr(8, 8, 4, barrier);
-
-    // initialize actors with random values
-    for (i = 0; i < NUM_ACTORS; i++)
+  for (i = 0; i < MAP_HGT; i++)
+  {
+    vram_adr(i16);
+    vram_read(nameRow, 32);
+    //vram_adr(i16);
+    
+    for (j = 0; j < MAP_WDT<<1; j+=2)
     {
-        actor_x[i] = i * 32 + 128;
-        actor_y[i] = i * 8 + 64;
-        actor_dx[i] = 0;
-        actor_dy[i] = 0;
+      spr = nameRow[j];
+      map[ptr] = spr;
+      ptr++;
     }
-  
-  
-    // loop forever
-    while (1)
-    {
-        //vram_adr(NAMETABLE_A);
-        vram_unrle(nam);
-        pal_bg(palGame); 	
-        oam_clear();
-      
-        // set player 0/1 velocity based on controller
-        for (i=0; i<2; i++) {
-          // poll controller i (0-1)
-          pad = pad_poll(i);
-          // move actor[i] left/right
-          if (pad&PAD_LEFT && actor_x[i]>0) actor_dx[i]=-2;
-          else if (pad&PAD_RIGHT && actor_x[i]<240) actor_dx[i]=2;
-          else actor_dx[i]=0;
-          // move actor[i] up/down
-          if (pad&PAD_UP && actor_y[i]>0) actor_dy[i]=-2;
-          else if (pad&PAD_DOWN && actor_y[i]<212) actor_dy[i]=2;
-          else actor_dy[i]=0;
-        }
+    i16 += 64;
+  }
 
+  ppu_on_all();
 
-        // draw and move all actors
-        for (i=0; i<NUM_ACTORS; i++) {
-          byte runseq = actor_x[i] & 7;
-          if (actor_dx[i] >= 0)
-            runseq += 8;
-          oam_id = oam_meta_spr(actor_x[i], actor_y[i], oam_id, playerRunSeq[runseq]);
-          actor_x[i] += actor_dx[i];
-          actor_y[i] += actor_dy[i];
-        }
+  actor_x[0] = 120;
+  actor_y[0] = 120;
 
+  // loop forever
+  while (true)
+  {
+    pad = pad_poll(0);
 
-        // hide rest of sprites
-        // if we haven't wrapped oam_id around to 0
-        if (oam_id!=0) oam_hide_rest(oam_id);
-
-        // wait for next frame
-        ppu_wait_frame();
+    // for collision detection w/ map representation
+    px=actor_x[0]>>TILE_SIZE_BIT;
+    py=actor_y[0]>>TILE_SIZE_BIT;
+    
+    // take input
+    if (pad & PAD_LEFT && actor_x[0] > 0){
+      actor_dx[0] = -2;
+      actor_dir[0] = LEFT;
     }
+    else if (pad & PAD_RIGHT && actor_x[0] < 240){
+      actor_dx[0] = 2;
+      px++;
+      actor_dir[0] = RIGHT;
+    } 
+    else
+      actor_dx[0] = 0;
+
+    if (pad & PAD_UP && actor_y[0] > 0){
+      actor_dy[0] = -2;
+      actor_dir[0] = UP;
+    }
+    else if (pad & PAD_DOWN && actor_y[0] < 212){
+      actor_dy[0] = 2;
+      py++;
+      actor_dir[0] = DOWN;
+    } 
+    else
+      actor_dy[0] = 0;
+    
+    // update and draw
+    oam_meta_spr(actor_x[0], actor_y[0], 0, player);
+    if (!tile_is_solid(map[MAP_ADR(px, py)])){
+      actor_x[0] += actor_dx[0];
+      actor_y[0] += actor_dy[0];
+    }
+    
+    // debug
+    *(unsigned char*)0x00f0 = px;
+    *(unsigned char*)0x00f2 = py;
+    *(unsigned char*)0x00ff = map[MAP_ADR(px, py)];
+    
+    ppu_wait_frame();
+  }
 }

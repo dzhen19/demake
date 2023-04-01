@@ -1,52 +1,41 @@
 ///// METASPRITES
 
-// define a 2x2 metasprite
-#define DEF_METASPRITE_2x2(name,code,pal)\
-const unsigned char name[]={\
-        0,      0,      (code)+0,   pal, \
-        0,      8,      (code)+1,   pal, \
-        8,      0,      (code)+2,   pal, \
-        8,      8,      (code)+3,   pal, \
-        128};
+#define NUM_ACTORS 2
+#define TILE_SIZE 16
 
-// define a 2x2 metasprite, flipped horizontally
-#define DEF_METASPRITE_2x2_FLIP(name,code,pal)\
-const unsigned char name[]={\
-        8,      0,      (code)+0,   (pal)|OAM_FLIP_H, \
-        8,      8,      (code)+1,   (pal)|OAM_FLIP_H, \
-        0,      0,      (code)+2,   (pal)|OAM_FLIP_H, \
-        0,      8,      (code)+3,   (pal)|OAM_FLIP_H, \
-        128};
+#define TILE_SIZE_BIT 4
+#define FP_BITS	4
 
-DEF_METASPRITE_2x2(playerRStand, 0xd8, 0);
-DEF_METASPRITE_2x2(playerRRun1, 0xdc, 0);
-DEF_METASPRITE_2x2(playerRRun2, 0xe0, 0);
-DEF_METASPRITE_2x2(playerRRun3, 0xe4, 0);
-DEF_METASPRITE_2x2(playerRJump, 0xe8, 0);
-DEF_METASPRITE_2x2(playerRClimb, 0xec, 0);
-DEF_METASPRITE_2x2(playerRSad, 0xf0, 0);
+#define MAP_WDT 16
+#define MAP_WDT_BIT 4
+#define MAP_HGT 15
 
-DEF_METASPRITE_2x2_FLIP(playerLStand, 0xd8, 0);
-DEF_METASPRITE_2x2_FLIP(playerLRun1, 0xdc, 0);
-DEF_METASPRITE_2x2_FLIP(playerLRun2, 0xe0, 0);
-DEF_METASPRITE_2x2_FLIP(playerLRun3, 0xe4, 0);
-DEF_METASPRITE_2x2_FLIP(playerLJump, 0xe8, 0);
-DEF_METASPRITE_2x2_FLIP(playerLClimb, 0xec, 0);
-DEF_METASPRITE_2x2_FLIP(playerLSad, 0xf0, 0);
+#define SURFACE 0x02
+#define CUTTING_BOARD 0x04
+#define CRATE 0x0A
+#define POT 0x0f
+#define BARRIER_1 0x00
+#define BARRIER_2 0x0E
+#define FLOOR 0x01
 
-DEF_METASPRITE_2x2_FLIP(barrier, 0xf4, 0);
+#define MAP_ADR(x,y)	((((y)-2)<<MAP_WDT_BIT)|(x))
 
-
-DEF_METASPRITE_2x2(personToSave, 0xba, 1);
-
-const unsigned char* const playerRunSeq[16] = {
-  playerLRun1, playerLRun2, playerLRun3, 
-  playerLRun1, playerLRun2, playerLRun3, 
-  playerLRun1, playerLRun2,
-  playerRRun1, playerRRun2, playerRRun3, 
-  playerRRun1, playerRRun2, playerRRun3, 
-  playerRRun1, playerRRun2,
+const unsigned char solids[] = { 
+  BARRIER_1, BARRIER_2, POT,
+  CUTTING_BOARD, SURFACE, CRATE
 };
+
+const unsigned char interactable[] = {
+  CUTTING_BOARD, SURFACE, CRATE, POT
+};
+
+// player is just a black square for now
+const unsigned char player[] = {
+    0, 0, 0x15, 0,
+    0, 8, 0x15, 0,
+    8, 0, 0x15, 0,
+    8, 8, 0x15, 0,
+    128};
 
 /*{pal:"nes",layout:"nes"}*/
 const char PALETTE[32] = { 
