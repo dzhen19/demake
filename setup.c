@@ -1,41 +1,58 @@
-///// METASPRITES
-
+// constants
 #define NUM_ACTORS 2
 #define TILE_SIZE 16
-
-#define TILE_SIZE_BIT 4
-#define FP_BITS	4
-
+#define NUM_SOLIDS 8
+#define NUM_CRATES 3
 #define MAP_WDT 16
-#define MAP_WDT_BIT 4
 #define MAP_HGT 15
 
-#define SURFACE 0x02
-#define CUTTING_BOARD 0x04
-#define CRATE 0x0A
-#define POT 0x0f
-#define BARRIER_1 0x00
-#define BARRIER_2 0x0E
+// bit sizes
+#define TILE_SIZE_BIT 4
+#define FP_BITS	4
+#define MAP_WDT_BIT 4
+
+// sprite map
+#define SURFACE 0x10
+#define CUTTING_BOARD 0x12
+#define FISH_CRATE 0x16
+#define RICE_CRATE 0x18
+#define NORI_CRATE 0x1A
+#define POT 0x14
+#define BARRIER_1 0x02
+#define BARRIER_2 0x01
 #define FLOOR 0x01
 
+// macros
 #define MAP_ADR(x,y)	((((y)-2)<<MAP_WDT_BIT)|(x))
+#define DEF_METASPRITE_2x2(name,code,pal)\
+const unsigned char name[]={\
+        0,      0,      (code)+0,   pal, \
+        8,      0,      (code)+1,   pal, \
+        0,      8,      (code)+16,   pal, \
+        8,      8,      (code)+17,   pal, \
+        128};
 
-const unsigned char solids[] = { 
+DEF_METASPRITE_2x2(player_spr, 0x36, 0)
+DEF_METASPRITE_2x2(rice_spr, 0x32, 0)
+DEF_METASPRITE_2x2(fish_spr, 0x30, 0)
+DEF_METASPRITE_2x2(nori_spr, 0x34, 0)
+DEF_METASPRITE_2x2(highlight_spr, 0x1c, 5)
+
+
+const unsigned char solids[NUM_SOLIDS] = { 
   BARRIER_1, BARRIER_2, POT,
-  CUTTING_BOARD, SURFACE, CRATE
+  CUTTING_BOARD, SURFACE, RICE_CRATE, FISH_CRATE, NORI_CRATE
 };
 
 const unsigned char interactable[] = {
-  CUTTING_BOARD, SURFACE, CRATE, POT
+  CUTTING_BOARD, SURFACE, NORI_CRATE, FISH_CRATE, RICE_CRATE, POT
 };
 
-// player is just a black square for now
-const unsigned char player[] = {
-    0, 0, 0x15, 0,
-    0, 8, 0x15, 0,
-    8, 0, 0x15, 0,
-    8, 8, 0x15, 0,
-    128};
+const unsigned char crates[] = {
+  NORI_CRATE, FISH_CRATE, RICE_CRATE
+};
+
+
 
 /*{pal:"nes",layout:"nes"}*/
 const char PALETTE[32] = { 

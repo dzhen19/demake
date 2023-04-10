@@ -1,2 +1,2 @@
 .segment "CHARS"
-.incbin "sketch.chr"
+.incbin "pt.chr"
