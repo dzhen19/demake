@@ -29,8 +29,9 @@ static unsigned char nameRow[32];
 static unsigned char ptr, spr;
 static unsigned int i16;
 static unsigned char i, j, k;
+static unsigned char p_i;
 static unsigned char px, py;
-static unsigned int vel = 4;
+static unsigned int vel = 2;
 
 typedef enum
 {
@@ -95,7 +96,7 @@ void draw_holdable(int x, int y, int holdable_enum)
     oam_meta_spr_pal(x, y, 0x03, nori_rice_spr);
     break;
   case NORI_FISH:
-    oam_meta_spr_pal(x, y, 0x03, nori_fish_spr);
+    oam_meta_spr_pal(x, y, 0x01, nori_fish_spr);
     break;
   case SUSHI:
     oam_meta_spr_pal(x, y, 0x01, sushi_spr);
@@ -155,77 +156,80 @@ void main()
 
   ppu_on_all();
 
-  actor_x[0] = 120;
-  actor_y[0] = 120;
-  actor_dir[0] = RIGHT;
-  holdable_x[0] = actor_x[0] - HDBL_OFFSET;
-  holdable_y[0] = actor_y[0];
+  for (p_i = 0; p_i < NUM_ACTORS; p_i++)
+  {
+    actor_x[p_i] = 120;
+    actor_y[p_i] = 120;
+    actor_dir[p_i] = RIGHT;
+    holdable_x[p_i] = actor_x[p_i] - HDBL_OFFSET;
+    holdable_y[p_i] = actor_y[p_i];
+  }
+
   // loop forever
   while (true)
   {
-    pad_t = pad_trigger(0);
-    pad = pad_state(0);
-
-    // for collision detection w/ map representation
-    px = actor_x[0] >> TILE_SIZE_BIT;
-    py = (actor_y[0] >> TILE_SIZE_BIT);
-
-    /*
-    if (pad){
-    	oam_hide_rest(oam_off);
-    }
-    */
-    // take input
-    if (pad & PAD_LEFT && actor_x[0] > 0)
+    
+    for (p_i = 0; p_i < NUM_ACTORS; p_i++)
     {
-      actor_dx[0] = -vel;
-      actor_dir[0] = LEFT;
+      pad_t = pad_trigger(p_i);
+      pad = pad_state(p_i);
 
-      holdable_x[0] = actor_x[0] + HDBL_OFFSET;
-      holdable_y[0] = actor_y[0];
-    }
-    else if (pad & PAD_RIGHT && actor_x[0] < 240)
-    {
-      actor_dx[0] = vel;
-      px++;
-      actor_dir[0] = RIGHT;
+      // for collision detection w/ map representation
+      px = actor_x[p_i] >> TILE_SIZE_BIT;
+      py = actor_y[p_i] >> TILE_SIZE_BIT;
 
-      holdable_x[0] = actor_x[0] - HDBL_OFFSET;
-      holdable_y[0] = actor_y[0];
-    }
-    else
-    {
-      actor_dx[0] = 0;
-      actor_dir[0] = actor_dir[0];
-    }
+      // take input
+      if (pad & PAD_LEFT && actor_x[p_i] > 0)
+      {
+        actor_dx[p_i] = -vel;
+        actor_dir[p_i] = LEFT;
 
-    if (pad & PAD_UP && actor_y[0] > 0)
-    {
-      actor_dy[0] = -vel;
-      actor_dir[0] = UP;
+        holdable_x[p_i] = actor_x[p_i] + HDBL_OFFSET;
+        holdable_y[p_i] = actor_y[p_i];
+      }
+      else if (pad & PAD_RIGHT && actor_x[p_i] < 240)
+      {
+        actor_dx[p_i] = vel;
+        px++;
+        actor_dir[p_i] = RIGHT;
 
-      holdable_y[0] = actor_y[0] + HDBL_OFFSET;
-      holdable_x[0] = actor_x[0];
-    }
-    else if (pad & PAD_DOWN && actor_y[0] < 212)
-    {
-      actor_dy[0] = vel;
-      py++;
-      actor_dir[0] = DOWN;
+        holdable_x[p_i] = actor_x[p_i] - HDBL_OFFSET;
+        holdable_y[p_i] = actor_y[p_i];
+      }
+      else
+      {
+        actor_dx[p_i] = 0;
+        actor_dir[p_i] = actor_dir[p_i];
+      }
 
-      holdable_y[0] = actor_y[0] - HDBL_OFFSET;
-      holdable_x[0] = actor_x[0];
-    }
-    else
-    {
-      actor_dy[0] = 0;
-      actor_dir[0] = actor_dir[0];
-    }
+      if (pad & PAD_UP && actor_y[p_i] > 0)
+      {
+        actor_dy[p_i] = -vel;
+        actor_dir[p_i] = UP;
 
-    // draw player and player item
-    oam_off = 0;
-    oam_meta_spr_pal(actor_x[0], actor_y[0], 0x00, player_spr);
-    draw_holdable(holdable_x[0], holdable_y[0], actor_holding[0]);
+        holdable_y[p_i] = actor_y[p_i] + HDBL_OFFSET;
+        holdable_x[p_i] = actor_x[p_i];
+      }
+      else if (pad & PAD_DOWN && actor_y[p_i] < 212)
+      {
+        actor_dy[p_i] = vel;
+        py++;
+        actor_dir[p_i] = DOWN;
+
+        holdable_y[p_i] = actor_y[p_i] - HDBL_OFFSET;
+        holdable_x[p_i] = actor_x[p_i];
+      }
+      else
+      {
+        actor_dy[p_i] = 0;
+        actor_dir[p_i] = actor_dir[p_i];
+      }
+
+      // draw player and player item
+      oam_off = 0;
+      oam_meta_spr_pal(actor_x[p_i], actor_y[p_i], 0x00, player_spr);
+      draw_holdable(holdable_x[p_i], holdable_y[p_i], actor_holding[p_i]);
+    }
 
     // draw all loose items
     for (i = 0; i < MAP_HGT; i++)
@@ -243,8 +247,8 @@ void main()
     // draw selected tile
     if (!tile_is_solid(map[MAP_ADR(px, py + 2)]))
     {
-      actor_x[0] += actor_dx[0];
-      actor_y[0] += actor_dy[0];
+      actor_x[p_i] += actor_dx[p_i];
+      actor_y[p_i] += actor_dy[0];
     }
     else
     {
@@ -284,6 +288,13 @@ void main()
         {
           actor_holding[0] = NONE;
           item_map[ptr] = NORI_RICE;
+        }
+
+        else if ((prev_item == PREPPED_FISH && held == NORI) ||
+                 (prev_item == NORI && held == PREPPED_FISH))
+        {
+          actor_holding[0] = NONE;
+          item_map[ptr] = NORI_FISH;
         }
 
         else if ((prev_item == NORI_RICE && held == PREPPED_FISH) ||
