@@ -5,6 +5,7 @@
 #define NUM_CRATES 3
 #define MAP_WDT 16
 #define MAP_HGT 15
+#define HDBL_OFFSET 16
 
 // bit sizes
 #define TILE_SIZE_BIT 4
@@ -36,7 +37,10 @@ DEF_METASPRITE_2x2(player_spr, 0x36, 0)
 DEF_METASPRITE_2x2(rice_spr, 0x32, 0)
 DEF_METASPRITE_2x2(fish_spr, 0x30, 0)
 DEF_METASPRITE_2x2(nori_spr, 0x34, 0)
-DEF_METASPRITE_2x2(highlight_spr, 0x1c, 5)
+DEF_METASPRITE_2x2(prepped_fish_spr, 0x52, 0)
+DEF_METASPRITE_2x2(prepped_rice_spr, 0x54, 0)
+DEF_METASPRITE_2x2(rice_fish_spr, 0x72, 0)
+DEF_METASPRITE_2x2(highlight_spr, 0x1c, 1)
 
 
 const unsigned char solids[NUM_SOLIDS] = { 
