@@ -25,7 +25,6 @@ static unsigned char map[MAP_WDT * MAP_HGT];
 static unsigned char item_map[MAP_WDT * MAP_HGT];
 
 static unsigned char nameRow[32];
-static char oam_id;
 
 static unsigned char ptr, spr;
 static unsigned int i16;
@@ -69,33 +68,41 @@ bool tile_is_solid(char tile)
   return false;
 }
 
-int draw_holdable(int x, int y, int oam_id, int holdable_enum)
+void draw_holdable(int x, int y, int holdable_enum)
 {
-  int new_oam_id = oam_id;
   switch (holdable_enum)
   {
+    oam_off = 0;
   case FISH:
-    new_oam_id = oam_meta_spr(x, y, oam_id, fish_spr);
+    oam_meta_spr_pal(x, y, 0x02, fish_spr);
     break;
   case NORI:
-    new_oam_id = oam_meta_spr(x, y, oam_id, nori_spr);
+    oam_meta_spr_pal(x, y, 0x03, nori_spr);
     break;
   case RICE:
-    new_oam_id = oam_meta_spr(x, y, oam_id, rice_spr);
+    oam_meta_spr_pal(x, y, 0x02, rice_spr);
     break;
   case PREPPED_FISH:
-    new_oam_id = oam_meta_spr(x, y, oam_id, prepped_fish_spr);
+    oam_meta_spr_pal(x, y, 0x02, prepped_fish_spr);
     break;
   case PREPPED_RICE:
-    new_oam_id = oam_meta_spr(x, y, oam_id, prepped_rice_spr);
+    oam_meta_spr_pal(x, y, 0x02, prepped_rice_spr);
     break;
-    case FISH_RICE:
-      new_oam_id = oam_meta_spr(x, y, oam_id, rice_fish_spr);
-      break;
+  case FISH_RICE:
+    oam_meta_spr_pal(x, y, 0x02, rice_fish_spr);
+    break;
+  case NORI_RICE:
+    oam_meta_spr_pal(x, y, 0x03, nori_rice_spr);
+    break;
+  case NORI_FISH:
+    oam_meta_spr_pal(x, y, 0x03, nori_fish_spr);
+    break;
+  case SUSHI:
+    oam_meta_spr_pal(x, y, 0x01, sushi_spr);
+    break;
   default:
     break;
   }
-  return new_oam_id;
 }
 
 // main program
@@ -113,6 +120,7 @@ void main()
   // i16 = NAMETABLE_A+0x80;
   i16 = NTADR_A(0, 0);
   ptr = 0;
+  // oam_off = 0;
 
   for (i = 0; i < MAP_HGT; i++)
   {
@@ -162,6 +170,11 @@ void main()
     px = actor_x[0] >> TILE_SIZE_BIT;
     py = (actor_y[0] >> TILE_SIZE_BIT);
 
+    /*
+    if (pad){
+    	oam_hide_rest(oam_off);
+    }
+    */
     // take input
     if (pad & PAD_LEFT && actor_x[0] > 0)
     {
@@ -210,8 +223,9 @@ void main()
     }
 
     // draw player and player item
-    oam_id = oam_meta_spr(actor_x[0], actor_y[0], 0, player_spr);
-    oam_id = draw_holdable(holdable_x[0], holdable_y[0], oam_id, actor_holding[0]);
+    oam_off = 0;
+    oam_meta_spr_pal(actor_x[0], actor_y[0], 0x00, player_spr);
+    draw_holdable(holdable_x[0], holdable_y[0], actor_holding[0]);
 
     // draw all loose items
     for (i = 0; i < MAP_HGT; i++)
@@ -221,7 +235,7 @@ void main()
         k = item_map[MAP_ADR(i, j + 2)];
         if (k != NONE)
         {
-          oam_id = draw_holdable(i << TILE_SIZE_BIT, j << TILE_SIZE_BIT, oam_id, k);
+          draw_holdable(i << TILE_SIZE_BIT, j << TILE_SIZE_BIT, k);
         }
       }
     }
@@ -231,14 +245,10 @@ void main()
     {
       actor_x[0] += actor_dx[0];
       actor_y[0] += actor_dy[0];
-      if (actor_playable[0] != 0)
-        oam_hide_rest(actor_playable[0]); // remove former playable tile
     }
     else
     {
-      // draw highlight
-      actor_playable[0] = oam_id;
-      oam_id = oam_meta_spr(px * 16, py * 16, oam_id, highlight_spr); // place playable tile
+      oam_meta_spr_pal(px * 16, py * 16, 0x03, highlight_spr); // place playable tile
 
       // pick up / set down, use pad_trigger instead of pad_state
       // possibly modify what item player is holding
@@ -248,68 +258,61 @@ void main()
         char prev_item;
         ptr = MAP_ADR(px, py + 2);
         prev_item = item_map[ptr];
-        
+
         // default interaction: swap items with target
         actor_holding[0] = item_map[ptr];
         item_map[ptr] = held;
 
-	// spec interaction: cut fish
+        // spec interaction: cut fish
         if (map[ptr] == CUTTING_BOARD && item_map[ptr] == FISH)
           item_map[ptr] = PREPPED_FISH;
-        
+
         // spec interaction: boil rice
-        if (map[ptr] == POT && item_map[ptr] == RICE)
-           item_map[ptr] = PREPPED_RICE;
-        
+        else if (map[ptr] == POT && item_map[ptr] == RICE)
+          item_map[ptr] = PREPPED_RICE;
+
         // spec interaction: fish rice
-        if ((prev_item == PREPPED_RICE && held == PREPPED_FISH) ||
-            (prev_item == PREPPED_FISH && held == PREPPED_RICE)){
+        else if ((prev_item == PREPPED_RICE && held == PREPPED_FISH) ||
+                 (prev_item == PREPPED_FISH && held == PREPPED_RICE))
+        {
           actor_holding[0] = NONE;
           item_map[ptr] = FISH_RICE;
         }
-	
-        // spec interaction: grab ingredient from crate if no items on crate or player
-        if (held == NONE && prev_item==NONE){
-          switch(map[ptr]){
-            case FISH_CRATE:
-              actor_holding[0] = FISH;
-              break;
-            case NORI_CRATE:
-              actor_holding[0] = NORI;
-              break;
-            case RICE_CRATE:
-              actor_holding[0] = RICE;
-              break;
-          }
-        }
-          
-        
-        /*
-        switch (held)
+
+        else if ((prev_item == PREPPED_RICE && held == NORI) ||
+                 (prev_item == NORI && held == PREPPED_RICE))
         {
-        case FISH:
-            if (highlighted_spr == CUTTING_BOARD)
-              item_map[ptr];
-            break;
-        case NONE:
-          // check if a crate is being highlighted
-          if (item_map[ptr]!=NONE) break;
-          switch (highlighted_spr)
+          actor_holding[0] = NONE;
+          item_map[ptr] = NORI_RICE;
+        }
+
+        else if ((prev_item == NORI_RICE && held == PREPPED_FISH) ||
+                 (prev_item == PREPPED_FISH && held == NORI_RICE) ||
+                 (prev_item == NORI && held == FISH_RICE) ||
+                 (prev_item == FISH_RICE && held == NORI) ||
+                 (prev_item == NORI_FISH && held == PREPPED_RICE) ||
+                 (prev_item == PREPPED_RICE && held == NORI_FISH))
+        {
+          actor_holding[0] = NONE;
+          item_map[ptr] = SUSHI;
+        }
+
+        // spec interaction: grab ingredient from crate if no items on crate or player
+        if (held == NONE && prev_item == NONE)
+        {
+          switch (map[ptr])
           {
           case FISH_CRATE:
-            item_map[ptr] = FISH;
+            actor_holding[0] = FISH;
             break;
           case NORI_CRATE:
-            item_map[ptr] = NORI;
+            actor_holding[0] = NORI;
             break;
           case RICE_CRATE:
-            item_map[ptr] = RICE;
+            actor_holding[0] = RICE;
             break;
           }
-          break;
         }
-        */
-        
       }
     }
 
@@ -319,9 +322,9 @@ void main()
     //*(unsigned char*)0x00ff = map[MAP_ADR(px, py)];
     *(unsigned char *)0x00ff = actor_holding[0];
     *(unsigned char *)0x00f1 = actor_dir[0];
-    *(unsigned char *)0x00f3 = oam_id;
-    *(unsigned char *)0x00f4 = pad;
+    *(unsigned char *)0x00f4 = pad_state(0);
+    oam_hide_rest(oam_off);
 
-    ppu_wait_frame();
+    ppu_wait_nmi();
   }
 }

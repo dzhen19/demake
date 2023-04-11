@@ -1,7 +1,16 @@
+/*
+#include "neslib.h"
+#include <string.h>
+//#resource "pt.chr"
+//#link "map.s"
+#include "nam.h"
+#include "vrambuf.h"
+//#link "vrambuf.c"*/
+
 // constants
 #define NUM_ACTORS 2
 #define TILE_SIZE 16
-#define NUM_SOLIDS 8
+#define NUM_SOLIDS 9
 #define NUM_CRATES 3
 #define MAP_WDT 16
 #define MAP_HGT 15
@@ -22,6 +31,7 @@
 #define BARRIER_1 0x02
 #define BARRIER_2 0x01
 #define FLOOR 0x01
+#define SERVE 0x1E
 
 // macros
 #define MAP_ADR(x,y)	((((y)-2)<<MAP_WDT_BIT)|(x))
@@ -33,6 +43,21 @@ const unsigned char name[]={\
         8,      8,      (code)+17,   pal, \
         128};
 
+/*{pal:"nes",layout:"nes"}*/
+const char PALETTE[32] = { 
+  0x03,			// screen color
+
+  0x11,0x30,0x27,0x00,	// background palette 0
+  0x1C,0x20,0x2C,0x00,	// background palette 1
+  0x00,0x10,0x20,0x00,	// background palette 2
+  0x06,0x16,0x26,0x00,	// background palette 3
+
+  0x16,0x09,0x24,0x00,	// sprite palette 0
+  0x30,0x09,0x16,0x00,	// sprite palette 1
+  0x20,0x11,0x16,0x00,	// sprite palette 2
+  0x36,0x2A,0x09	// sprite palette 3
+};
+
 DEF_METASPRITE_2x2(player_spr, 0x36, 0)
 DEF_METASPRITE_2x2(rice_spr, 0x32, 0)
 DEF_METASPRITE_2x2(fish_spr, 0x30, 0)
@@ -40,12 +65,15 @@ DEF_METASPRITE_2x2(nori_spr, 0x34, 0)
 DEF_METASPRITE_2x2(prepped_fish_spr, 0x52, 0)
 DEF_METASPRITE_2x2(prepped_rice_spr, 0x54, 0)
 DEF_METASPRITE_2x2(rice_fish_spr, 0x72, 0)
-DEF_METASPRITE_2x2(highlight_spr, 0x1c, 1)
+DEF_METASPRITE_2x2(highlight_spr, 0x1c, 0)
+DEF_METASPRITE_2x2(sushi_spr, 0x74, 0)
+DEF_METASPRITE_2x2(nori_rice_spr, 0x76, 0)
+DEF_METASPRITE_2x2(nori_fish_spr, 0x78, 0)
 
 
 const unsigned char solids[NUM_SOLIDS] = { 
   BARRIER_1, BARRIER_2, POT,
-  CUTTING_BOARD, SURFACE, RICE_CRATE, FISH_CRATE, NORI_CRATE
+  CUTTING_BOARD, SURFACE, RICE_CRATE, FISH_CRATE, NORI_CRATE, SERVE
 };
 
 const unsigned char interactable[] = {
@@ -54,21 +82,4 @@ const unsigned char interactable[] = {
 
 const unsigned char crates[] = {
   NORI_CRATE, FISH_CRATE, RICE_CRATE
-};
-
-
-
-/*{pal:"nes",layout:"nes"}*/
-const char PALETTE[32] = { 
-  0x03,			// screen color
-
-  0x11,0x30,0x27,0x0,	// background palette 0
-  0x1c,0x20,0x2c,0x0,	// background palette 1
-  0x00,0x10,0x20,0x0,	// background palette 2
-  0x06,0x16,0x26,0x0,	// background palette 3
-
-  0x16,0x35,0x24,0x0,	// sprite palette 0
-  0x00,0x37,0x25,0x0,	// sprite palette 1
-  0x0d,0x2d,0x3a,0x0,	// sprite palette 2
-  0x0d,0x27,0x2a	// sprite palette 3
 };
