@@ -11,6 +11,8 @@
 
 byte actor_x[NUM_ACTORS];
 byte actor_y[NUM_ACTORS];
+byte actor_px[NUM_ACTORS];
+byte actor_py[NUM_ACTORS];
 byte holdable_x[NUM_ACTORS];
 byte holdable_y[NUM_ACTORS];
 // actor x/y deltas per frame (signed)
@@ -27,6 +29,7 @@ static unsigned char item_map[MAP_WDT * MAP_HGT];
 static unsigned char nameRow[32];
 
 static unsigned char ptr, spr;
+static unsigned char held, prev_item;
 static unsigned int i16;
 static unsigned char i, j, k;
 static unsigned char p_i;
@@ -118,10 +121,8 @@ void main()
   set_vram_update(updbuf);
 
   // now read vram and get map representation
-  // i16 = NAMETABLE_A+0x80;
   i16 = NTADR_A(0, 0);
   ptr = 0;
-  // oam_off = 0;
 
   for (i = 0; i < MAP_HGT; i++)
   {
@@ -165,18 +166,21 @@ void main()
     holdable_y[p_i] = actor_y[p_i];
   }
 
+  actor_x[1] = 100;
+  actor_y[1] = 100;
+
   // loop forever
   while (true)
   {
-    
+    oam_off = 0;
     for (p_i = 0; p_i < NUM_ACTORS; p_i++)
     {
       pad_t = pad_trigger(p_i);
       pad = pad_state(p_i);
 
       // for collision detection w/ map representation
-      px = actor_x[p_i] >> TILE_SIZE_BIT;
-      py = actor_y[p_i] >> TILE_SIZE_BIT;
+      actor_px[p_i] = actor_x[p_i] >> TILE_SIZE_BIT;
+      actor_py[p_i] = actor_y[p_i] >> TILE_SIZE_BIT;
 
       // take input
       if (pad & PAD_LEFT && actor_x[p_i] > 0)
@@ -190,7 +194,7 @@ void main()
       else if (pad & PAD_RIGHT && actor_x[p_i] < 240)
       {
         actor_dx[p_i] = vel;
-        px++;
+        actor_px[p_i]++;
         actor_dir[p_i] = RIGHT;
 
         holdable_x[p_i] = actor_x[p_i] - HDBL_OFFSET;
@@ -213,7 +217,7 @@ void main()
       else if (pad & PAD_DOWN && actor_y[p_i] < 212)
       {
         actor_dy[p_i] = vel;
-        py++;
+        actor_py[p_i]++;
         actor_dir[p_i] = DOWN;
 
         holdable_y[p_i] = actor_y[p_i] - HDBL_OFFSET;
@@ -226,9 +230,92 @@ void main()
       }
 
       // draw player and player item
-      oam_off = 0;
-      oam_meta_spr_pal(actor_x[p_i], actor_y[p_i], 0x00, player_spr);
+      oam_meta_spr_pal(actor_x[p_i], actor_y[p_i], player_pal[p_i], player_spr);
       draw_holdable(holdable_x[p_i], holdable_y[p_i], actor_holding[p_i]);
+
+      // draw selected tile
+      if (!tile_is_solid(map[MAP_ADR(actor_px[p_i], actor_py[p_i] + 2)]))
+      {
+        actor_x[p_i] += actor_dx[p_i];
+        actor_y[p_i] += actor_dy[p_i];
+      }
+      else
+      {
+        oam_meta_spr_pal(actor_px[p_i] * 16, actor_py[p_i] * 16, 0x03, highlight_spr); // place playable tile
+
+        // pick up / set down, use pad_trigger instead of pad_state
+        // possibly modify what item player is holding
+        if (pad_t & PAD_A)
+        {
+          
+          held = actor_holding[p_i];
+          ptr = MAP_ADR(actor_px[p_i], actor_py[p_i] + 2);
+          prev_item = item_map[ptr];
+
+          // default interaction: swap items with target
+          actor_holding[p_i] = item_map[ptr];
+          item_map[ptr] = held;
+
+          // spec interaction: cut fish
+          if (map[ptr] == CUTTING_BOARD && item_map[ptr] == FISH)
+            item_map[ptr] = PREPPED_FISH;
+
+          // spec interaction: boil rice
+          else if (map[ptr] == POT && item_map[ptr] == RICE)
+            item_map[ptr] = PREPPED_RICE;
+
+          // spec interaction: fish rice
+          else if ((prev_item == PREPPED_RICE && held == PREPPED_FISH) ||
+                   (prev_item == PREPPED_FISH && held == PREPPED_RICE))
+          {
+            actor_holding[p_i] = NONE;
+            item_map[ptr] = FISH_RICE;
+          }
+
+          else if ((prev_item == PREPPED_RICE && held == NORI) ||
+                   (prev_item == NORI && held == PREPPED_RICE))
+          {
+            actor_holding[p_i] = NONE;
+            item_map[ptr] = NORI_RICE;
+          }
+
+          else if ((prev_item == PREPPED_FISH && held == NORI) ||
+                   (prev_item == NORI && held == PREPPED_FISH))
+          {
+            actor_holding[p_i] = NONE;
+            item_map[ptr] = NORI_FISH;
+          }
+
+          else if ((prev_item == NORI_RICE && held == PREPPED_FISH) ||
+                   (prev_item == PREPPED_FISH && held == NORI_RICE) ||
+                   (prev_item == NORI && held == FISH_RICE) ||
+                   (prev_item == FISH_RICE && held == NORI) ||
+                   (prev_item == NORI_FISH && held == PREPPED_RICE) ||
+                   (prev_item == PREPPED_RICE && held == NORI_FISH))
+          {
+            actor_holding[p_i] = NONE;
+            item_map[ptr] = SUSHI;
+          }
+
+          // spec interaction: grab ingredient from crate if no items on crate or player
+          if (held == NONE && prev_item == NONE)
+          {
+            switch (map[ptr])
+            {
+            case FISH_CRATE:
+              actor_holding[p_i] = FISH;
+              break;
+            case NORI_CRATE:
+              actor_holding[p_i] = NORI;
+              break;
+            case RICE_CRATE:
+              actor_holding[p_i] = RICE;
+              break;
+            }
+          }
+          
+        }
+      }
     }
 
     // draw all loose items
@@ -244,88 +331,6 @@ void main()
       }
     }
 
-    // draw selected tile
-    if (!tile_is_solid(map[MAP_ADR(px, py + 2)]))
-    {
-      actor_x[p_i] += actor_dx[p_i];
-      actor_y[p_i] += actor_dy[0];
-    }
-    else
-    {
-      oam_meta_spr_pal(px * 16, py * 16, 0x03, highlight_spr); // place playable tile
-
-      // pick up / set down, use pad_trigger instead of pad_state
-      // possibly modify what item player is holding
-      if (pad_t & PAD_A)
-      {
-        char held = actor_holding[0];
-        char prev_item;
-        ptr = MAP_ADR(px, py + 2);
-        prev_item = item_map[ptr];
-
-        // default interaction: swap items with target
-        actor_holding[0] = item_map[ptr];
-        item_map[ptr] = held;
-
-        // spec interaction: cut fish
-        if (map[ptr] == CUTTING_BOARD && item_map[ptr] == FISH)
-          item_map[ptr] = PREPPED_FISH;
-
-        // spec interaction: boil rice
-        else if (map[ptr] == POT && item_map[ptr] == RICE)
-          item_map[ptr] = PREPPED_RICE;
-
-        // spec interaction: fish rice
-        else if ((prev_item == PREPPED_RICE && held == PREPPED_FISH) ||
-                 (prev_item == PREPPED_FISH && held == PREPPED_RICE))
-        {
-          actor_holding[0] = NONE;
-          item_map[ptr] = FISH_RICE;
-        }
-
-        else if ((prev_item == PREPPED_RICE && held == NORI) ||
-                 (prev_item == NORI && held == PREPPED_RICE))
-        {
-          actor_holding[0] = NONE;
-          item_map[ptr] = NORI_RICE;
-        }
-
-        else if ((prev_item == PREPPED_FISH && held == NORI) ||
-                 (prev_item == NORI && held == PREPPED_FISH))
-        {
-          actor_holding[0] = NONE;
-          item_map[ptr] = NORI_FISH;
-        }
-
-        else if ((prev_item == NORI_RICE && held == PREPPED_FISH) ||
-                 (prev_item == PREPPED_FISH && held == NORI_RICE) ||
-                 (prev_item == NORI && held == FISH_RICE) ||
-                 (prev_item == FISH_RICE && held == NORI) ||
-                 (prev_item == NORI_FISH && held == PREPPED_RICE) ||
-                 (prev_item == PREPPED_RICE && held == NORI_FISH))
-        {
-          actor_holding[0] = NONE;
-          item_map[ptr] = SUSHI;
-        }
-
-        // spec interaction: grab ingredient from crate if no items on crate or player
-        if (held == NONE && prev_item == NONE)
-        {
-          switch (map[ptr])
-          {
-          case FISH_CRATE:
-            actor_holding[0] = FISH;
-            break;
-          case NORI_CRATE:
-            actor_holding[0] = NORI;
-            break;
-          case RICE_CRATE:
-            actor_holding[0] = RICE;
-            break;
-          }
-        }
-      }
-    }
 
     // debug
     *(unsigned char *)0x00f0 = px;
